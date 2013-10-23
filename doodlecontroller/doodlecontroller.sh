@@ -1,5 +1,9 @@
 #!/bin/bash
 
+#
+# We assume that you already have compiled the based project via: mvn clean compile package appassembler:assemble
+# And also capied the folders target/appassembler/bin and target/appassembler/repo into /opt/doodlecontroller
+#
 COMPONENT_NAME="doodlecontroller"
 COMPONENT_PATH="/opt/$COMPONENT_NAME/"
 LOG_FOLDER="/var/log/$COMPONENT_NAME/"
@@ -71,9 +75,6 @@ configure()
 		;;
 		esac
 	done
-	STARTUP_OPTIONS="-Dlog4j.configuration=file:"$COMPONENT_PATH"/src/main/resources/log4j.properties "
-	STARTUP_OPTIONS="$STARTUP_OPTIONS -Dat.ac.tuwien.dsg.cloud.configuration=$CONFIG_FILE "
-
 }
 
 
@@ -82,12 +83,17 @@ configure()
 #
 buildStartupOption(){
 
-	local controller="rules";
+	local controller="rules"
+	local monitoringip="127.0.0.1"
+	
+	STARTUP_OPTIONS="-Dlog4j.configuration=file:"$COMPONENT_PATH"conf/log4j.properties "
+    STARTUP_OPTIONS="$STARTUP_OPTIONS -Dat.ac.tuwien.dsg.cloud.configuration=$CONFIG_FILE "
 
-	# Default values
-	write_log "Default Startup options:"
+    # Default values
+    write_log "Default Startup options:"
+    write_log "$STARTUP_OPTIONS"
 
-        # Extract from the ENV all the properties that match this component name space
+        # Extract from the ENV all the properties that match this component name space on startup
         local pattern=$COMPONENT_NAME"_startup_"
         for customp in `env | grep "^$pattern" | sed "s/^$pattern//"`
         do
@@ -122,10 +128,11 @@ buildStartupOption(){
 		esac
 	done
 
+	# Must be 6 !
 	ARGS="$organizationName $customerName $serviceName $deployid $manifesturl $controller"
 	STARTUP_OPTIONS="$STARTUP_OPTIONS -Dch.usi.cloud.controller.doodleservice.monitoring.db.host=$monitoringip"
 
-	# Inject RUNTIME Values
+	write_log "Inject RUNTIME Values"
 	cd $COMPONENT_PATH
 	cp bin/$COMPONENT_NAME.original bin/$COMPONENT_NAME
         
@@ -171,7 +178,6 @@ sh bin/$COMPONENT_NAME $ARGS 2>&1 | tee -a "$LOG_FOLDER/$COMPONENT_NAME.out"
 
                 # This is an heuristic...
                 sleep 5
-                #if [ `jobs | grep "Running" | wc -l` -lt 1 ]
                 if [ `screen -ls "$COMPONENT_NAME" | wc -l` -lt 4 ]
 		then
 			RETVAL=1
@@ -187,8 +193,9 @@ stop()
 	write_log "  Stopping $COMPONENT_NAME"
 
         local oldpath="$PWD"
-	cd "$COMPONENT_PATH"
-		ps aux | grep java | grep -v jetty | grep doodlecontroller | awk '{print $2}' | xargs kill -15
+	    cd "$COMPONENT_PATH"
+			# ps aux | grep java | grep -v jetty | grep doodlecontroller | awk '{print $2}' | xargs kill -15
+			screen -S $COMPONENT_NAME -X quit
         cd "$oldpath"
 
 	write_log "  Stopped"
@@ -221,6 +228,13 @@ deregister()
         done
 }
 
+clean()
+{
+        write_log "Clean logs for $COMPONENT_NAME"
+        rm -v $LOG_FOLDER""$COMPONENT_NAME.*
+        rm -v $LOG_FOLDER"".*
+}
+
 #######################################################################
 # Here the main begins
 #######################################################################
@@ -242,6 +256,8 @@ restart)
 deregister)
   deregister
 ;;
+clean)
+  clean
 *)
 echo "Wrong input. Usage: $0 {start|stop|restart|deregister}"
 RETVAL=1
