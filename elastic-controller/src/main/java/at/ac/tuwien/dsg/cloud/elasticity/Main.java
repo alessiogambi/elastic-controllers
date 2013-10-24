@@ -11,7 +11,6 @@ import org.apache.tapestry5.ioc.Registry;
 import org.apache.tapestry5.ioc.RegistryBuilder;
 import org.gambi.tapestry5.cli.services.CLIParser;
 
-import at.ac.tuwien.dsg.cloud.data.DynamicServiceDescription;
 import at.ac.tuwien.dsg.cloud.elasticity.modules.ElasticControllerModule;
 import at.ac.tuwien.dsg.cloud.elasticity.services.ElasticController;
 import at.ac.tuwien.dsg.cloud.elasticity.utils.ExtendedIOCUtilities;
@@ -85,6 +84,5 @@ public class Main {
 			e.printStackTrace();
 			System.exit(1);
 		}
-		// Really needed ?!
 	}
 }
