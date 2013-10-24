@@ -1,9 +1,9 @@
-package at.ac.tuwien.dsg.cloud.elasticity.services.impl.controllers;
+package at.ac.tuwien.dsg.cloud.elasticity.services.internal.impl;
 
 import java.util.Map;
 
-import at.ac.tuwien.dsg.cloud.elasticity.services.ControllerSource;
 import at.ac.tuwien.dsg.cloud.elasticity.services.ElasticController;
+import at.ac.tuwien.dsg.cloud.elasticity.services.internal.ControllerSource;
 
 public class ControllerSourceImpl implements ControllerSource {
 

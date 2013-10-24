@@ -4,7 +4,7 @@ import javax.validation.ConstraintValidator;
 import javax.validation.ConstraintValidatorContext;
 
 import at.ac.tuwien.dsg.cloud.elasticity.annotations.ValidControllerName;
-import at.ac.tuwien.dsg.cloud.elasticity.services.ControllerSource;
+import at.ac.tuwien.dsg.cloud.elasticity.services.internal.ControllerSource;
 
 public class ControllerNameValidator implements
 		ConstraintValidator<ValidControllerName, String> {
