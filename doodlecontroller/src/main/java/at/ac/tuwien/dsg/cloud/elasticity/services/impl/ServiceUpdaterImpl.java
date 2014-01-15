@@ -2,7 +2,6 @@ package at.ac.tuwien.dsg.cloud.elasticity.services.impl;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -31,6 +30,7 @@ public class ServiceUpdaterImpl implements ServiceUpdater {
 	}
 
 	@Override
+	// Note that service is the shared instance !
 	public void update(DynamicServiceDescription service) {
 
 		UUID deployId = service.getDeployID();
@@ -41,14 +41,21 @@ public class ServiceUpdaterImpl implements ServiceUpdater {
 		try {
 			// Get all the IDs of all the instances belonging to the service to
 			// update
-			Set<String> instanceIDs = cloud.getServiceInstances(serviceFQN,
+
+			// Note: THIS IS CACHED !
+			Set<InstanceDescription> instances = cloud.getInstances(serviceFQN,
 					deployId);
 
-			// Get all the details
-			List<InstanceDescription> instances = new ArrayList<InstanceDescription>();
-			for (String instanceID : instanceIDs) {
-				instances.add(cloud.getInstanceDescriptionByID(instanceID));
-			}
+			System.out
+					.println("\n\n ServiceUpdaterImpl.update() cloud found those "
+							+ instances.size() + "instances : " + instances);
+
+			// // Get all the details
+			// List<InstanceDescription> instances = new
+			// ArrayList<InstanceDescription>();
+			// for (String instanceID : instanceIDs) {
+			// instances.add(cloud.getInstanceDescriptionByID(instanceID));
+			// }
 
 			// THis is the new representation
 			HashMap<String, ArrayList<InstanceDescription>> _instances = new HashMap<String, ArrayList<InstanceDescription>>();

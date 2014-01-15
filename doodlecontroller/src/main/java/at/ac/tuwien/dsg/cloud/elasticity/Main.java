@@ -1,5 +1,6 @@
 package at.ac.tuwien.dsg.cloud.elasticity;
 
+import java.net.URL;
 import java.util.UUID;
 
 import org.apache.tapestry5.ioc.IOCUtilities;
@@ -13,6 +14,8 @@ import at.ac.tuwien.dsg.cloud.elasticity.modules.DoodleElasticControlModule;
 import at.ac.tuwien.dsg.cloud.elasticity.modules.DoodleServiceModule;
 import at.ac.tuwien.dsg.cloud.elasticity.services.ElasticController;
 import at.ac.tuwien.dsg.cloud.manifest.StaticServiceDescriptionFactory;
+import at.ac.tuwien.dsg.cloud.modules.CloudAppModule;
+import at.ac.tuwien.dsg.cloud.openstack.modules.OSCloudAppModule;
 import ch.usi.cloud.controller.common.naming.FQN;
 
 /**
@@ -35,16 +38,20 @@ public class Main {
 		// Add the local modules
 		builder.add(DoodleServiceModule.class);
 		builder.add(DoodleElasticControlModule.class);
-		builder.add(at.ac.tuwien.dsg.cloud.modules.CloudAppModule.class);
-		builder.add(at.ac.tuwien.dsg.cloud.openstack.modules.CloudAppModule.class);
+		builder.add(CloudAppModule.class);
+		builder.add(OSCloudAppModule.class);
 
 		// Register the shutdown hook
 		Runtime.getRuntime().addShutdownHook(new Thread() {
 			public void run() {
-				// for operations done from this thread
-				registry.cleanupThread();
-				// call this to allow services clean shutdown
-				registry.shutdown();
+				try {
+					// for operations done from this thread
+					registry.cleanupThread();
+					// call this to allow services clean shutdown
+					registry.shutdown();
+				} catch (Throwable e) {
+					e.printStackTrace();
+				}
 			}
 		});
 
@@ -72,11 +79,12 @@ public class Main {
 		String customerName = args[1];
 		String serviceName = args[2];
 
+		UUID deployID = UUID.fromString(args[3]);
+
 		String manifestURL = args[4];
 		String _controllerName = args[5];
 
 		FQN serviceFQN = new FQN(organizationName, customerName, serviceName);
-		UUID deployID = UUID.fromString(args[3]);
 
 		// TODO: Expose inputs as symbold !
 		System.getProperties().put("args:deployID", deployID.toString());
@@ -90,14 +98,17 @@ public class Main {
 			controllerName = DoodleSymbolConstants.FIXED_RULE_BASED_CONTROLLER_NAME;
 		} else if ("rules-proportional".equalsIgnoreCase(_controllerName)) {
 			controllerName = DoodleSymbolConstants.PROPORTIONAL_RULE_BASED_CONTROLLER_NAME;
-		}
-		if ("rules-fixed-nb".equalsIgnoreCase(_controllerName)) {
+		} else if ("rules-fixed-nb".equalsIgnoreCase(_controllerName)) {
 			controllerName = DoodleSymbolConstants.FIXED_RULE_BASED_CONTROLLER_NAME_NON_BLOCKING;
 		} else if ("rules-proportional-nb".equalsIgnoreCase(_controllerName)) {
 			controllerName = DoodleSymbolConstants.PROPORTIONAL_RULE_BASED_CONTROLLER_NAME_NON_BLOCKING;
 		} else {
-			controllerName = DoodleSymbolConstants.FIXED_RULE_BASED_CONTROLLER_NAME;
+			throw new RuntimeException("Invalid controller name !"
+					+ controllerName);
 		}
+
+		System.out.println("Main.main() ControllerNAME " + _controllerName
+				+ " --> " + controllerName);
 
 		// Configurations passed via the SystemProperties
 		// System.getProperties()
@@ -108,21 +119,21 @@ public class Main {
 		try {
 			_service = new StaticServiceDescription(serviceFQN,
 					StaticServiceDescriptionFactory.fromURL(manifestURL)
-							.getOrderedVees());
+							.getOrderedVees(), new URL(manifestURL));
 			DynamicServiceDescription service = new DynamicServiceDescription(
 					_service, deployID);
 
 			Main main = new Main();
 			main.startController(service, controllerName);
 
+			// ?
 			Thread.currentThread().join();
 			// TOOD Wait the end quietly ? Maybe some stop signal ?
 
 		} catch (Exception e) {
 			e.printStackTrace();
-			System.exit(1);
 		}
 		// Really needed ?!
-		System.exit(0);
+		// System.exit(0);
 	}
 }

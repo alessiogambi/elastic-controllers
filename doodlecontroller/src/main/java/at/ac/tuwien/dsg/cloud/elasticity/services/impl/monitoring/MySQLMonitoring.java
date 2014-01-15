@@ -28,7 +28,8 @@ public class MySQLMonitoring implements Monitoring {
 		this.applicationDB = applicationDB;
 
 		logger.info("MySQLMonitoring  configurations:\n" + "\t"
-				+ this.applicationDB);
+				+ this.applicationDB.getUrl() + " "
+				+ this.applicationDB.getUsername());
 	}
 
 	@Override
@@ -105,7 +106,9 @@ public class MySQLMonitoring implements Monitoring {
 				}
 		}
 
-		logger.debug("MySQLMonitoring.executeQuery() " + valuesFromDB.size());
+		logger.info("MySQLMonitoring.executeQuery() found : "
+				+ valuesFromDB.size());
+		logger.debug("Values : " + valuesFromDB);
 
 		return valuesFromDB;
 	}

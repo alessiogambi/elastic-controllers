@@ -1,23 +1,23 @@
 package at.ac.tuwien.dsg.cloud.elasticity.services.impl.configurationactuators;
 
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
 
 import org.slf4j.Logger;
 
 import at.ac.tuwien.dsg.cloud.data.DynamicServiceDescription;
 import at.ac.tuwien.dsg.cloud.data.InstanceDescription;
 import at.ac.tuwien.dsg.cloud.data.VeeDescription;
+import at.ac.tuwien.dsg.cloud.exceptions.ServiceDeployerException;
 import at.ac.tuwien.dsg.cloud.services.CloudController;
 
-public class BasicConfigurationActuator extends
-		BlockingConfigurationActuator {
+public class BasicConfigurationActuator extends BlockingConfigurationActuator {
 
 	private Logger logger;
 	private CloudController controller;
 
-	public BasicConfigurationActuator(Logger logger,
-			CloudController controller) {
+	public BasicConfigurationActuator(Logger logger, CloudController controller) {
+		super();
 		this.logger = logger;
 		this.controller = controller;
 	}
@@ -28,7 +28,7 @@ public class BasicConfigurationActuator extends
 			DynamicServiceDescription targetConfiguration) {
 
 		// Compute the differnce and deploy/undeploy the VEE
-		List<InstanceDescription> instancesToRemove = new ArrayList<InstanceDescription>();
+		Collection<VeeDescription> instancesToRemove = new ArrayList<VeeDescription>();
 		for (VeeDescription vee : currentConfiguration
 				.getStaticServiceDescription().getOrderedVees()) {
 
@@ -36,14 +36,14 @@ public class BasicConfigurationActuator extends
 					.getVeeInstances(vee.getName())) {
 				if (!targetConfiguration.getVeeInstances(vee.getName())
 						.contains(instance)) {
-					logger.info("Instance " + instance
-							+ " marked to be removed ");
-					instancesToRemove.add(instance);
+					logger.info("Vee " + vee.getName() + "(Instance "
+							+ instance + ") marked to be removed ");
+					instancesToRemove.add(vee);
 				}
 			}
 		}
 
-		List<InstanceDescription> instancesToAdd = new ArrayList<InstanceDescription>();
+		Collection<VeeDescription> instancesToAdd = new ArrayList<VeeDescription>();
 		for (VeeDescription vee : targetConfiguration
 				.getStaticServiceDescription().getOrderedVees()) {
 
@@ -51,8 +51,8 @@ public class BasicConfigurationActuator extends
 					.getVeeInstances(vee.getName())) {
 				if (!currentConfiguration.getVeeInstances(vee.getName())
 						.contains(instance)) {
-					logger.info("Instance " + instance + " marked to be added");
-					instancesToAdd.add(instance);
+					logger.info("Vee " + vee.getName() + " marked to be added");
+					instancesToAdd.add(vee);
 				}
 			}
 		}
@@ -61,39 +61,39 @@ public class BasicConfigurationActuator extends
 
 		// Finally implements the changes
 		try {
-			List<String> instancesToRemoveIDs = new ArrayList<String>();
-			for (InstanceDescription instance : instancesToRemove) {
-				instancesToRemoveIDs.add(instance.getInstanceId());
-			}
+			logger.info("Removing from Cloud the following vees: "
+					+ instancesToRemove);
 
-			logger.info("Removing from Cloud: " + instancesToRemove);
-			controller.removeVEEsbyInstanceID(currentConfiguration,
-					instancesToRemoveIDs);
+			// This modifies the service object passed as input !
+			controller.removeVEEs(instancesToRemove, currentConfiguration);
+
 			// Here remove from current !!!
 			// FIXME Note that this is not working fine !!!
-			for (InstanceDescription instance : instancesToRemove) {
-				currentConfiguration.removeReplica(instance.getReplicaFQN());
-			}
+			// for (InstanceDescription instance : instancesToRemove) {
+			// currentConfiguration.removeReplica(instance.getReplicaFQN());
+			// }
 
 			logger.info("After Remove: " + currentConfiguration);
+		} catch (ServiceDeployerException e) {
+			logger.error("Error while removing replicas " + instancesToRemove,
+					e);
 		} catch (Exception e) {
 			logger.error("Error while removing replicas " + instancesToRemove,
 					e);
 		}
 
-		for (InstanceDescription instance : instancesToAdd) {
-			try {
-				logger.info("Launchin " + instance.getReplicaFQN() + " "
-						+ targetConfiguration.getDeployID());
+		try {
+			logger.info("Launching the following vees :" + instancesToAdd);
 
-				// Now we need to take the Current to the target !
-				controller.launchVEEwithReplicaFQN(instance.getReplicaFQN(),
-						currentConfiguration,
-						currentConfiguration.getDeployID());
-				logger.info("After Deploy " + currentConfiguration);
-			} catch (Exception e) {
-				logger.error("Error while deployng new replica " + instance, e);
-			}
+			// Now we need to take the Current to the target !
+			controller.launchVEEs(instancesToAdd, currentConfiguration);
+
+			logger.info("After Deploy " + currentConfiguration);
+		} catch (ServiceDeployerException e) {
+			logger.error("Error while adding replicas " + instancesToAdd, e);
+		} catch (Exception e) {
+			logger.error("Error while addingreplicas " + instancesToAdd, e);
 		}
+
 	}
 }

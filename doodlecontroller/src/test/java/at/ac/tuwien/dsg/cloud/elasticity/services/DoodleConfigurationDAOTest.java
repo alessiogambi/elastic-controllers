@@ -1,5 +1,7 @@
 package at.ac.tuwien.dsg.cloud.elasticity.services;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.UUID;
 
 import org.apache.tapestry5.ioc.IOCUtilities;
@@ -13,10 +15,13 @@ import at.ac.tuwien.dsg.cloud.elasticity.modules.DoodleElasticControlModule;
 import at.ac.tuwien.dsg.cloud.elasticity.modules.DoodleServiceModule;
 import at.ac.tuwien.dsg.cloud.exceptions.ServiceDeployerException;
 import at.ac.tuwien.dsg.cloud.manifest.StaticServiceDescriptionFactory;
+import at.ac.tuwien.dsg.cloud.modules.CloudAppModule;
+import at.ac.tuwien.dsg.cloud.openstack.modules.OSCloudAppModule;
 import ch.usi.cloud.controller.common.naming.FQN;
 
 public class DoodleConfigurationDAOTest {
-	public static void main(String[] args) throws ServiceDeployerException {
+	public static void main(String[] args) throws ServiceDeployerException,
+			MalformedURLException {
 
 		UUID deployID = UUID.fromString("bc9afd03-e397-4635-9366-6ed09634c1c5");
 
@@ -41,8 +46,8 @@ public class DoodleConfigurationDAOTest {
 		IOCUtilities.addDefaultModules(builder);
 		// Add the local modules
 
-		builder.add(at.ac.tuwien.dsg.cloud.modules.CloudAppModule.class);
-		builder.add(at.ac.tuwien.dsg.cloud.openstack.modules.CloudAppModule.class);
+		builder.add(CloudAppModule.class);
+		builder.add(OSCloudAppModule.class);
 		builder.add(DoodleElasticControlModule.class);
 		builder.add(DoodleServiceModule.class);
 
@@ -52,7 +57,7 @@ public class DoodleConfigurationDAOTest {
 
 		StaticServiceDescription _service = new StaticServiceDescription(
 				serviceFQN, StaticServiceDescriptionFactory
-						.fromURL(manifestURL).getOrderedVees());
+						.fromURL(manifestURL).getOrderedVees(), new URL(manifestURL));
 
 		DynamicServiceDescription service = new DynamicServiceDescription(
 				_service, deployID);

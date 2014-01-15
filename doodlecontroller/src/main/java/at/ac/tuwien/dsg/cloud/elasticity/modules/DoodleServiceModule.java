@@ -45,18 +45,20 @@ public class DoodleServiceModule {
 		ConfigurationActuator configurationActuator = null;
 		if (platformName.equalsIgnoreCase("openstack")
 				|| platformName.equalsIgnoreCase("os")) {
-			serviceUpdater = objectLocator.getService("OSServiceUpdater",
+			serviceUpdater = objectLocator.getService("ServiceUpdater",
 					ServiceUpdater.class);
 			configurationActuator = objectLocator.getService(
-					"OSBlockingConfigurationActuator",
-					ConfigurationActuator.class);
-		} else if (platformName.equalsIgnoreCase("amazon")) {
-			serviceUpdater = objectLocator.getService("AmazonServiceUpdater",
-					ServiceUpdater.class);
-			configurationActuator = objectLocator.getService(
-					"AmazonBlockingConfigurationActuator",
+					"BlockingConfigurationActuator",
 					ConfigurationActuator.class);
 		}
+
+		// else if (platformName.equalsIgnoreCase("amazon")) {
+		// serviceUpdater = objectLocator.getService("AmazonServiceUpdater",
+		// ServiceUpdater.class);
+		// configurationActuator = objectLocator.getService(
+		// "AmazonBlockingConfigurationActuator",
+		// ConfigurationActuator.class);
+		// }
 
 		return new DoodleServiceElasticController(logger,
 				configurationSelector, configurationActuator, waitService,
@@ -87,18 +89,20 @@ public class DoodleServiceModule {
 		ConfigurationActuator configurationActuator = null;
 		if (platformName.equalsIgnoreCase("openstack")
 				|| platformName.equalsIgnoreCase("os")) {
-			serviceUpdater = objectLocator.getService("OSServiceUpdater",
+			serviceUpdater = objectLocator.getService("ServiceUpdater",
 					ServiceUpdater.class);
 			configurationActuator = objectLocator.getService(
-					"OSBlockingConfigurationActuator",
-					ConfigurationActuator.class);
-		} else if (platformName.equalsIgnoreCase("amazon")) {
-			serviceUpdater = objectLocator.getService("AmazonServiceUpdater",
-					ServiceUpdater.class);
-			configurationActuator = objectLocator.getService(
-					"AmazonBlockingConfigurationActuator",
+					"BlockingConfigurationActuator",
 					ConfigurationActuator.class);
 		}
+
+		// else if (platformName.equalsIgnoreCase("amazon")) {
+		// serviceUpdater = objectLocator.getService("AmazonServiceUpdater",
+		// ServiceUpdater.class);
+		// configurationActuator = objectLocator.getService(
+		// "AmazonBlockingConfigurationActuator",
+		// ConfigurationActuator.class);
+		// }
 
 		return new DoodleServiceElasticController(logger,
 				configurationSelector, configurationActuator, waitService,
@@ -129,18 +133,19 @@ public class DoodleServiceModule {
 		ConfigurationActuator configurationActuator = null;
 		if (platformName.equalsIgnoreCase("openstack")
 				|| platformName.equalsIgnoreCase("os")) {
-			serviceUpdater = objectLocator.getService("OSServiceUpdater",
+			serviceUpdater = objectLocator.getService("ServiceUpdater",
 					ServiceUpdater.class);
 			configurationActuator = objectLocator.getService(
-					"OSNonBlockingConfigurationActuator",
-					ConfigurationActuator.class);
-		} else if (platformName.equalsIgnoreCase("amazon")) {
-			serviceUpdater = objectLocator.getService("AmazonServiceUpdater",
-					ServiceUpdater.class);
-			configurationActuator = objectLocator.getService(
-					"AmazonNonBlockingConfigurationActuator",
+					"NonBlockingConfigurationActuator",
 					ConfigurationActuator.class);
 		}
+		// else if (platformName.equalsIgnoreCase("amazon")) {
+		// serviceUpdater = objectLocator.getService("AmazonServiceUpdater",
+		// ServiceUpdater.class);
+		// configurationActuator = objectLocator.getService(
+		// "AmazonNonBlockingConfigurationActuator",
+		// ConfigurationActuator.class);
+		// }
 
 		return new DoodleServiceElasticController(logger,
 				configurationSelector, configurationActuator, waitService,
@@ -164,27 +169,26 @@ public class DoodleServiceModule {
 			ObjectLocator objectLocator,
 			@InjectService("FixedDoodleConfigurationSelectorRules") ConfigurationSelector configurationSelector,
 			@InjectService("AbsolutePeriodicWait") WaitService waitService,
-			@Symbol(DoodleSymbolConstants.PLATFORM) String platformName) {
+			@Symbol(DoodleSymbolConstants.PLATFORM) String platformName,
+			// Configuration Actuator
+			@InjectService("NonBlockingConfigurationActuator") ConfigurationActuator configurationActuator) {
 
 		ServiceUpdater serviceUpdater = null;
-		ConfigurationActuator configurationActuator = null;
-		if (platformName.equalsIgnoreCase("openstack")
-				|| platformName.equalsIgnoreCase("os")) {
-			serviceUpdater = objectLocator.getService("OSServiceUpdater",
-					ServiceUpdater.class);
-			configurationActuator = objectLocator.getService(
-					"OSNonBlockingConfigurationActuator",
-					ConfigurationActuator.class);
-		} else if (platformName.equalsIgnoreCase("amazon")) {
-			serviceUpdater = objectLocator.getService("AmazonServiceUpdater",
-					ServiceUpdater.class);
-			configurationActuator = objectLocator.getService(
-					"AmazonNonBlockingConfigurationActuator",
-					ConfigurationActuator.class);
-		}
+
+		// if (platformName.equalsIgnoreCase("openstack")
+		// || platformName.equalsIgnoreCase("os")) {
+		serviceUpdater = objectLocator.getService("ServiceUpdater",
+				ServiceUpdater.class);
+		// }
+		// else if (platformName.equalsIgnoreCase("amazon")) {
+		// serviceUpdater = objectLocator.getService("AmazonServiceUpdater",
+		// ServiceUpdater.class);
+		// configurationActuator = objectLocator.getService(
+		// "AmazonNonBlockingConfigurationActuator",
+		// ConfigurationActuator.class);
+		// }
 		return new DoodleServiceElasticController(logger,
 				configurationSelector, configurationActuator, waitService,
 				serviceUpdater);
 	}
-
 }

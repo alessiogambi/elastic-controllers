@@ -56,7 +56,7 @@ public class DoodleServiceElasticController implements ElasticController {
 
 		this.running = false;
 
-		logger.info("DoodleServiceElasticController.DoodleServiceElasticController()");
+		logger.info("DoodleServiceElasticController.DoodleServiceElasticController() ");
 	}
 
 	@Override
@@ -70,6 +70,7 @@ public class DoodleServiceElasticController implements ElasticController {
 
 				configurationSelector.setService(service);
 
+				// TODO Use a periodic executor service by tapestry
 				// Maybe this runnable should be provided as service as well ?!
 				thread = new Thread(new Runnable() {
 
@@ -104,10 +105,12 @@ public class DoodleServiceElasticController implements ElasticController {
 								// invocation in
 								// three statements:
 
-								DynamicServiceDescription targetServiceConfiguration = configurationSelector.getTargetConfiguration();
+								DynamicServiceDescription targetServiceConfiguration = configurationSelector
+										.getTargetConfiguration();
 
 								// Note this can be or cannot be blocking !
-								configurationActuator.actuate(service, targetServiceConfiguration);
+								configurationActuator.actuate(service,
+										targetServiceConfiguration);
 							} catch (Throwable e) {
 								logger.error("Error in main control loop:", e);
 							}

@@ -124,6 +124,16 @@ public class FixedDoodleConfigurationSelectorRules extends
 			return _currentConfiguration;
 		}
 
+		// TODO
+		// Apply Resource limits
+		// if (targetConfiguration < getMinInstances()) {
+		// logger.warn("THE MINIMUM NUMBER OF doodleAS HAS BEEN REACHED !");
+		// targetConfiguration = (int) getMinInstances();
+		// } else if (targetConfiguration > getMaxInstances()) {
+		// logger.warn("THE MAXIMUM NUMBER OF doodleAS HAS BEEN REACHED !");
+		// targetConfiguration = (int) getMaxInstances();
+		// }
+
 		// Apply Cool Down periods
 		if (currentConfiguration < targetConfiguration) {
 			logger.info("Scaling up");

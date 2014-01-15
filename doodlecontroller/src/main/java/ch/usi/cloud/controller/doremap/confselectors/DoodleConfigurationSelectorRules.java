@@ -55,47 +55,52 @@ public class DoodleConfigurationSelectorRules extends ConfigurationSelector {
 						// triggering scale up
 
 	// Those acgually can be put inside the change request actuator
-	long scaleUpCoolDown=1*60*1000;
-	long scaleDownCoolDown=2*60*1000;
-	
-	private long lastScaleUp=-1;
-	private long lastScaleDown=-1;
-	
-	public DoodleConfigurationSelectorRules(long controlPeriod, ManifestConnector mc,
-			DataSource ds, String serviceId) {
+	long scaleUpCoolDown = 1 * 60 * 1000;
+	long scaleDownCoolDown = 2 * 60 * 1000;
+
+	private long lastScaleUp = -1;
+	private long lastScaleDown = -1;
+
+	public DoodleConfigurationSelectorRules(long controlPeriod,
+			ManifestConnector mc, DataSource ds, String serviceId) {
 		super(controlPeriod, mc, ds, serviceId);
-		
-		
-		try{
-		minJobs = Integer.parseInt(System.getProperty(DOREMAP_MIN_JOBS_PER_DOODLEAS,
-				Integer.toString(minJobs)));
-		}catch(Exception e){
+
+		try {
+			minJobs = Integer.parseInt(System.getProperty(
+					DOREMAP_MIN_JOBS_PER_DOODLEAS, Integer.toString(minJobs)));
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		
-		try{
-		maxJobs = Integer.parseInt(System.getProperty(DOREMAP_MAX_JOBS_PER_DOODLEAS,
-				Integer.toString(maxJobs)));
-		}catch(Exception e){
+
+		try {
+			maxJobs = Integer.parseInt(System.getProperty(
+					DOREMAP_MAX_JOBS_PER_DOODLEAS, Integer.toString(maxJobs)));
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		
-		try{
-			scaleUpCoolDown = Long.parseLong(System.getProperty("scaleup.cooldown",
-					Long.toString(scaleUpCoolDown)));
-			}catch(Exception e){
-				e.printStackTrace();
-			}
-		
-		try{
-			scaleDownCoolDown = Long.parseLong(System.getProperty("scaledown.cooldown",
-					Long.toString(scaleDownCoolDown)));
-			}catch(Exception e){
-				e.printStackTrace();
-			}
-		logger.info("\n\nSUMMARY: Rules are triggered if we received less than " +minJobs + " and more than " + maxJobs + " per allocated doodle as in the past minute in average." +
-				"Cool down periods are scale down " + scaleDownCoolDown + " and scale up " + scaleUpCoolDown + "\n\n"); 
-	
+
+		try {
+			scaleUpCoolDown = Long.parseLong(System.getProperty(
+					"scaleup.cooldown", Long.toString(scaleUpCoolDown)));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		try {
+			scaleDownCoolDown = Long.parseLong(System.getProperty(
+					"scaledown.cooldown", Long.toString(scaleDownCoolDown)));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		logger.info("\n\nSUMMARY: Rules are triggered if we received less than "
+				+ minJobs
+				+ " and more than "
+				+ maxJobs
+				+ " per allocated doodle as in the past minute in average."
+				+ "Cool down periods are scale down "
+				+ scaleDownCoolDown
+				+ " and scale up " + scaleUpCoolDown + "\n\n");
+
 	}
 
 	@Override
@@ -137,7 +142,8 @@ public class DoodleConfigurationSelectorRules extends ConfigurationSelector {
 		m.descriptor = new ModelDescriptor(serviceFQN);
 		// By default the configuration space defines part of the input
 		// features: this is our (only) controllable variable so far.
-		logger.info("\n\n Configurations from manifest:" + mc.getConfiguration());
+		logger.info("\n\n Configurations from manifest:"
+				+ mc.getConfiguration());
 
 		for (ConfigurationFeature f : mc.getConfiguration()) {
 			// TODO: Only doodleas is elastic for the moment
@@ -147,13 +153,13 @@ public class DoodleConfigurationSelectorRules extends ConfigurationSelector {
 					logger.info("Adding KPI as feature: " + f.name);
 				}
 			} else {
-			logger.info( f.name + " NOT ADDED TO THE FEATURES" );
+				logger.info(f.name + " NOT ADDED TO THE FEATURES");
 			}
 		}
 
-		if( m.descriptor.inputFeatures.size() == 0 ){
+		if (m.descriptor.inputFeatures.size() == 0) {
 			logger.error("NO INPUT FEATURES IN THE MODEL DESCRIPTOR. EXIT !");
-			System.exit( -1 );
+			System.exit(-1);
 		}
 
 	}
@@ -181,7 +187,8 @@ public class DoodleConfigurationSelectorRules extends ConfigurationSelector {
 	 * Compute the next configuration
 	 */
 	@Override
-	protected ServiceConfiguration getTargetConfiguration() throws ConfigurationException {
+	protected ServiceConfiguration getTargetConfiguration()
+			throws ConfigurationException {
 
 		if (currentConfiguration == null) {
 			throw new ConfigurationException("Missing current configuration");
@@ -191,43 +198,50 @@ public class DoodleConfigurationSelectorRules extends ConfigurationSelector {
 		Model model = models.get(0);
 
 		if (doodleAS == -1) {
-try{
-	logger.info("Doodle AS == -1");
-	logger.info("currentConfiguration " + currentConfiguration );
-	logger.info("model.descriptor.inputFeatures.size() = " + model.descriptor.inputFeatures.size() );
-			doodleAS = currentConfiguration
-					.getInstancesCount(model.descriptor.inputFeatures.get(0).name);
-}catch(Exception e){
+			try {
+				logger.info("Doodle AS == -1");
+				logger.info("currentConfiguration " + currentConfiguration);
+				logger.info("model.descriptor.inputFeatures.size() = "
+						+ model.descriptor.inputFeatures.size());
+				doodleAS = currentConfiguration
+						.getInstancesCount(model.descriptor.inputFeatures
+								.get(0).name);
+			} catch (Exception e) {
 
-e.printStackTrace();
-}
+				e.printStackTrace();
+			}
 		}
 
 		// incoming requests in the last 6 periods ( half a minute)
 		double[] context = getRCAverage(monitoringDs, 6);
 		// NOTE THE Columns may have different names !
-		logger.info("Retrieved context: "
-				+ Arrays.toString(context));
+		logger.info("\n\n\n\n \t\t Retrieved context: "
+				+ Arrays.toString(context) + "\n\n\n\n ");
 
 		double jobs = (context[0] + context[1] + context[2] + context[3]);
 		logger.info("Current doodleAS: "
-				+ currentConfiguration.getInstancesCount(model.descriptor.inputFeatures.get(0).name));
+				+ currentConfiguration
+						.getInstancesCount(model.descriptor.inputFeatures
+								.get(0).name));
 
-		logger.warn(" jobs per app server => \n\n"+ minJobs + " < " +(jobs/doodleAS) + " < " + maxJobs );
+		logger.warn(" jobs per app server => \n\n" + minJobs + " < "
+				+ (jobs / doodleAS) + " < " + maxJobs);
 
 		if (jobs / doodleAS > maxJobs) {
 
-			if (doodleAS < getMaxInstances(model.descriptor.inputFeatures.get(0).name)) {
-				logger.info("Current configuration is too small with " + jobs / doodleAS
-						+ " jobs per doodleAS (Scaling up)");
+			if (doodleAS < getMaxInstances(model.descriptor.inputFeatures
+					.get(0).name)) {
+				logger.info("Current configuration is too small with " + jobs
+						/ doodleAS + " jobs per doodleAS (Scaling up)");
 
-				
-				if( System.currentTimeMillis() - lastScaleUp < scaleUpCoolDown && lastScaleUp > 0){
-					logger.warn("Cannot scale up due to Cool down period. Time to wait " + (System.currentTimeMillis() - lastScaleUp));
+				if (System.currentTimeMillis() - lastScaleUp < scaleUpCoolDown
+						&& lastScaleUp > 0) {
+					logger.warn("Cannot scale up due to Cool down period. Time to wait "
+							+ (System.currentTimeMillis() - lastScaleUp));
 				} else {
-				// then scale up
-				doodleAS++;
-				lastScaleUp = System.currentTimeMillis();
+					// then scale up
+					doodleAS++;
+					lastScaleUp = System.currentTimeMillis();
 				}
 			} else {
 				logger.warn("THE MAXIMUM NUMBER OF doodleAS HAS BEEN REACHED, skipping new configuration with "
@@ -236,16 +250,19 @@ e.printStackTrace();
 
 		} else if (jobs / doodleAS < minJobs && doodleAS > 1) {
 
-			if (doodleAS > getMinInstances(model.descriptor.inputFeatures.get(0).name)) {
-				logger.info("Current configuration is too big with " + jobs / doodleAS
-						+ " jobs per doodleAS (Scaling down)");
+			if (doodleAS > getMinInstances(model.descriptor.inputFeatures
+					.get(0).name)) {
+				logger.info("Current configuration is too big with " + jobs
+						/ doodleAS + " jobs per doodleAS (Scaling down)");
 
-				if( System.currentTimeMillis() - lastScaleDown < scaleDownCoolDown && lastScaleDown > 0){
-					logger.warn("Cannot scale down due to Cool down period. Time to wait " + (System.currentTimeMillis() - lastScaleDown));
+				if (System.currentTimeMillis() - lastScaleDown < scaleDownCoolDown
+						&& lastScaleDown > 0) {
+					logger.warn("Cannot scale down due to Cool down period. Time to wait "
+							+ (System.currentTimeMillis() - lastScaleDown));
 				} else {
-				// then scale up
-				doodleAS--;
-				lastScaleDown = System.currentTimeMillis();
+					// then scale up
+					doodleAS--;
+					lastScaleDown = System.currentTimeMillis();
 				}
 			} else {
 				logger.warn("THE MINIMUM NUMBER OF doodleAS HAS BEEN REACHED, skipping new configuration with "
@@ -254,17 +271,11 @@ e.printStackTrace();
 		}
 
 		logger.info("Requested doodleAS: " + doodleAS);
-		
-		
-		
-		
 
-		ServiceConfiguration nextConf = convertArrayToServiceConf(doodleAS, currentConfiguration,
+		ServiceConfiguration nextConf = convertArrayToServiceConf(doodleAS,
+				currentConfiguration,
 				model.descriptor.inputFeatures.get(0).name);
 
-		
-		
-		
 		logger.info("next configuration: " + nextConf);
 		return nextConf;
 
@@ -276,8 +287,8 @@ e.printStackTrace();
 	}
 
 	@Override
-	protected Collection<? extends ConfigurationFeature> getInputFeatures(List<String> kpiList,
-			ServiceLevelObjective slo) {
+	protected Collection<? extends ConfigurationFeature> getInputFeatures(
+			List<String> kpiList, ServiceLevelObjective slo) {
 		// new Exception("This method is not implemented.").printStackTrace();
 		return new ArrayList<ConfigurationFeature>();
 	}
@@ -294,18 +305,21 @@ e.printStackTrace();
 		// NOTE Names can be different !!
 		// query.append("SELECT avg(kpi_createRC), avg(kpi_getRC), avg(kpi_voteRC), avg(kpi_deleteRC)");
 		query.append("SELECT avg(kpi_CREATE_POLL_RC), avg(kpi_GET_POLL_RC), avg(kpi_VOTE_RC), avg(kpi_DELETE_POLL_RC)");
-		query.append(" FROM " + TablesManager.getTableNameFromServiceId(mc.getServiceId()));
-//		query.append("  where rowid in (select rowid from "
-//				+ TablesManager.getTableNameFromServiceId(mc.getServiceId())
-//				+ " where (kpi_createRC not null or " + "kpi_getRC not null or "
-//				+ "kpi_voteRC not null or " + "kpi_deleteRC not null) and " + "time > "
-//				+ (System.currentTimeMillis() - 600000)
- query.append("  where rowid in (select rowid from "
-                                + TablesManager.getTableNameFromServiceId(mc.getServiceId())
-                                + " where (kpi_CREATE_POLL_RC not null or " + "kpi_GET_POLL_RC not null or "
-                                + "kpi_VOTE_RC not null or " + "kpi_DELETE_POLL_RC not null) and " + "time > "
-                                + (System.currentTimeMillis() - 600000) /*
-
+		query.append(" FROM "
+				+ TablesManager.getTableNameFromServiceId(mc.getServiceId()));
+		// query.append("  where rowid in (select rowid from "
+		// + TablesManager.getTableNameFromServiceId(mc.getServiceId())
+		// + " where (kpi_createRC not null or " + "kpi_getRC not null or "
+		// + "kpi_voteRC not null or " + "kpi_deleteRC not null) and " +
+		// "time > "
+		// + (System.currentTimeMillis() - 600000)
+		query.append("  where rowid in (select rowid from "
+				+ TablesManager.getTableNameFromServiceId(mc.getServiceId())
+				+ " where (kpi_CREATE_POLL_RC not null or "
+				+ "kpi_GET_POLL_RC not null or " + "kpi_VOTE_RC not null or "
+				+ "kpi_DELETE_POLL_RC not null) and " + "time > "
+				+ (System.currentTimeMillis() - 600000) /*
+														 * 
 														 * NOTE: if we use this
 														 * method we must be
 														 * sure that the remote
@@ -384,12 +398,14 @@ e.printStackTrace();
 									type + ".replicas." + (instances + j + k))) {
 								k++;
 							}
-							nextConf.addVEEInstance(type, type + ".replicas." + (instances + j + k));
+							nextConf.addVEEInstance(type, type + ".replicas."
+									+ (instances + j + k));
 						}
 					} else if (instances > doodleAS) {
 						// need to remove instances
 						for (int j = 0; j < instances - doodleAS; j++) {
-							String lastInstance = getLastInstance(nextConf, type);
+							String lastInstance = getLastInstance(nextConf,
+									type);
 							nextConf.removeVEEInstance(type, lastInstance);
 						}
 					}
@@ -401,7 +417,8 @@ e.printStackTrace();
 		return nextConf;
 	}
 
-	private static String getLastInstance(ServiceConfiguration nextConf, String type) {
+	private static String getLastInstance(ServiceConfiguration nextConf,
+			String type) {
 		List<String> instances = nextConf.getInstances(type);
 		String last = instances.get(0);
 		// System.err.println(last);

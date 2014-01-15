@@ -19,7 +19,8 @@ import at.ac.tuwien.dsg.cloud.elasticity.services.ConfigurationActuator;
 public abstract class NonBlockingConfigurationActuator implements
 		ConfigurationActuator {
 
-	private ExecutorService executor;
+	protected ExecutorService executor;
+	protected DynamicServiceDescription service;
 
 	public NonBlockingConfigurationActuator() {
 		executor = Executors.newFixedThreadPool(1);
@@ -31,17 +32,24 @@ public abstract class NonBlockingConfigurationActuator implements
 
 	@Override
 	public final void actuate(
+			// Current conf is the actual service object !
 			final DynamicServiceDescription currentConfiguration,
 			final DynamicServiceDescription targetConfiguration) {
 
-		executor.execute(new Runnable() {
+		// Note this !
+		this.service = currentConfiguration;
 
-			@Override
-			public void run() {
-				actuateTheConfiguration(currentConfiguration,
-						targetConfiguration);
-			}
-		});
+		// I think this is to much ad the call should not be blocking in general
+		// !
+		// executor.execute(new Runnable() {
+
+		// @Override
+		// public void run() {
+		// System.out.println("\n\nNonBlockingConfigurationActuator.actuate() "
+		// + targetConfiguration);
+		actuateTheConfiguration(currentConfiguration, targetConfiguration);
+		// }
+		// });
 
 	}
 }

@@ -1,5 +1,6 @@
 package at.ac.tuwien.dsg.cloud.elasticity.advices;
 
+import java.net.URL;
 import java.util.UUID;
 
 import org.apache.tapestry5.ioc.IOCUtilities;
@@ -75,7 +76,7 @@ public class CacheAdviseTest {
 
 			StaticServiceDescription _service = new StaticServiceDescription(
 					serviceFQN, StaticServiceDescriptionFactory.fromURL(
-							manifestURL).getOrderedVees());
+							manifestURL).getOrderedVees(), new URL(manifestURL));
 
 			DynamicServiceDescription currentConfiguration = new DynamicServiceDescription(
 					_service, deployID);

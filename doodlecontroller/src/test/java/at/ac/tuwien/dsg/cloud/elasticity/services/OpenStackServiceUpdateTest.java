@@ -1,5 +1,7 @@
 package at.ac.tuwien.dsg.cloud.elasticity.services;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.UUID;
 
 import org.apache.tapestry5.ioc.IOCUtilities;
@@ -12,11 +14,13 @@ import at.ac.tuwien.dsg.cloud.elasticity.modules.DoodleElasticControlModule;
 import at.ac.tuwien.dsg.cloud.elasticity.modules.DoodleServiceModule;
 import at.ac.tuwien.dsg.cloud.exceptions.ServiceDeployerException;
 import at.ac.tuwien.dsg.cloud.manifest.StaticServiceDescriptionFactory;
+import at.ac.tuwien.dsg.cloud.modules.CloudAppModule;
+import at.ac.tuwien.dsg.cloud.openstack.modules.OSCloudAppModule;
 import ch.usi.cloud.controller.common.naming.FQN;
 
 public class OpenStackServiceUpdateTest {
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws MalformedURLException {
 
 		try {
 			UUID deployID = UUID
@@ -42,8 +46,8 @@ public class OpenStackServiceUpdateTest {
 			IOCUtilities.addDefaultModules(builder);
 			// Add the local modules
 
-			builder.add(at.ac.tuwien.dsg.cloud.modules.CloudAppModule.class);
-			builder.add(at.ac.tuwien.dsg.cloud.openstack.modules.CloudAppModule.class);
+			builder.add(CloudAppModule.class);
+			builder.add(OSCloudAppModule.class);
 			builder.add(DoodleElasticControlModule.class);
 			builder.add(DoodleServiceModule.class);
 
@@ -57,7 +61,7 @@ public class OpenStackServiceUpdateTest {
 
 			StaticServiceDescription _service = new StaticServiceDescription(
 					serviceFQN, StaticServiceDescriptionFactory.fromURL(
-							manifestURL).getOrderedVees());
+							manifestURL).getOrderedVees(), new URL(manifestURL));
 
 			DynamicServiceDescription service = new DynamicServiceDescription(
 					_service, deployID);
@@ -68,7 +72,7 @@ public class OpenStackServiceUpdateTest {
 					.println("OpenStackServiceUpdateTest.main() Updated Service "
 							+ service);
 			System.out.println("OpenStackServiceUpdateTest.main()"
-					+ service.getFirstNullReplicaNum("appserver"));
+					+ service.getReplicaNum("appserver"));
 
 		} catch (ServiceDeployerException e) {
 			// TODO Auto-generated catch block

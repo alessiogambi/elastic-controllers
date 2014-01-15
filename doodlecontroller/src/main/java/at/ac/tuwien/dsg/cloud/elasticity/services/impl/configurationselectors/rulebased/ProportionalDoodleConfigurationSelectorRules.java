@@ -79,7 +79,7 @@ public class ProportionalDoodleConfigurationSelectorRules extends
 				+ currentConfiguration);
 		double jobs = (context[0] + context[1] + context[2] + context[3]);
 
-		logger.warn("Jobs per app server => \n\n" + minJobs + " < "
+		logger.info("Jobs per app server => \n\n" + minJobs + " < "
 				+ (jobs / currentConfiguration) + " < " + maxJobs);
 
 		double target = (maxJobs + minJobs) / 2;
@@ -90,7 +90,16 @@ public class ProportionalDoodleConfigurationSelectorRules extends
 
 		logger.info("Target configuration would be " + targetConfiguration);
 
-		// Apply Cool Down periods
+		// Apply Resource limits
+		if (targetConfiguration < getMinInstances()) {
+			logger.warn("THE MINIMUM NUMBER OF doodleAS WOULD BE REACHED - LIMIT TO MIN !");
+			targetConfiguration = (int) getMinInstances();
+		} else if (targetConfiguration > getMaxInstances()) {
+			logger.warn("THE MAXIMUM NUMBER OF doodleAS WOULD BE REACHED - LIMIT TO MAX!");
+			targetConfiguration = (int) getMaxInstances();
+		}
+
+		// Eventually Apply Cool Down periods
 		if (currentConfiguration < targetConfiguration) {
 			logger.info("Current configuration is too small with (Scaling up)");
 			if (System.currentTimeMillis() - lastScaleUp < scaleUpCoolDownMillis
@@ -112,15 +121,6 @@ public class ProportionalDoodleConfigurationSelectorRules extends
 			} else {
 				lastScaleDown = System.currentTimeMillis();
 			}
-		}
-
-		// Apply Resource limits
-		if (targetConfiguration < getMinInstances()) {
-			logger.warn("THE MINIMUM NUMBER OF doodleAS HAS BEEN REACHED !");
-			targetConfiguration = (int) getMinInstances();
-		} else if (targetConfiguration > getMaxInstances()) {
-			logger.warn("THE MAXIMUM NUMBER OF doodleAS HAS BEEN REACHED !");
-			targetConfiguration = (int) getMaxInstances();
 		}
 
 		return convertArrayToServiceConf(targetConfiguration);

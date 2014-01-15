@@ -1,5 +1,7 @@
 package at.ac.tuwien.dsg.cloud.elasticity.services;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,21 +17,25 @@ import at.ac.tuwien.dsg.cloud.elasticity.modules.DoodleElasticControlModule;
 import at.ac.tuwien.dsg.cloud.elasticity.modules.DoodleServiceModule;
 import at.ac.tuwien.dsg.cloud.exceptions.ServiceDeployerException;
 import at.ac.tuwien.dsg.cloud.manifest.StaticServiceDescriptionFactory;
+import at.ac.tuwien.dsg.cloud.modules.CloudAppModule;
+import at.ac.tuwien.dsg.cloud.openstack.modules.OSCloudAppModule;
 import ch.usi.cloud.controller.common.naming.FQN;
 
 public class MySQLMonitoringTest {
-	public static void main(String[] args) throws ServiceDeployerException {
-		String _deployID = "e2ac4087-ffb7-454a-b4ef-1e9b838eb1c4";
+	public static void main(String[] args) throws ServiceDeployerException,
+			MalformedURLException {
+		String _deployID = "e785ad96-f631-456b-bb24-e60e289705bf";
 		UUID deployID = UUID.fromString(_deployID);
-		String organizationName = "aaa";
-		String customerName = "bbb";
-		String serviceName = "ccc";
+		String organizationName = "dsg";
+		String customerName = "pes";
+		String serviceName = "pes";
 		FQN serviceFQN = new FQN(organizationName, customerName, serviceName);
 		String manifestURL = "http://www.inf.usi.ch/phd/gambi/attachments/autocles/doodle-manifest.xml";
 
-		System.getProperties()
-				.put("at.ac.tuwien.dsg.cloud.configuration",
-						"/Users/alessiogambi/jopera-dev/org.jopera.subsystems.cloud/src/cloud.properties");
+		System.getProperties().put("args:serviceFQN", serviceFQN.toString());
+		System.getProperties().put("args:deployID", _deployID);
+		System.getProperties().put("at.ac.tuwien.dsg.cloud.configuration",
+				"src/test/resources/cloud.properties");
 
 		Registry registry;
 
@@ -41,8 +47,8 @@ public class MySQLMonitoringTest {
 		IOCUtilities.addDefaultModules(builder);
 		// Add the local modules
 
-		builder.add(at.ac.tuwien.dsg.cloud.modules.CloudAppModule.class);
-		builder.add(at.ac.tuwien.dsg.cloud.openstack.modules.CloudAppModule.class);
+		builder.add(CloudAppModule.class);
+		builder.add(OSCloudAppModule.class);
 		builder.add(DoodleElasticControlModule.class);
 		builder.add(DoodleServiceModule.class);
 
@@ -52,7 +58,8 @@ public class MySQLMonitoringTest {
 
 		StaticServiceDescription _service = new StaticServiceDescription(
 				serviceFQN, StaticServiceDescriptionFactory
-						.fromURL(manifestURL).getOrderedVees());
+						.fromURL(manifestURL).getOrderedVees(), new URL(
+						manifestURL));
 
 		DynamicServiceDescription service = new DynamicServiceDescription(
 				_service, deployID);
@@ -60,7 +67,7 @@ public class MySQLMonitoringTest {
 		Monitoring monitoring = registry.getService(
 				SymbolConstants.SQL_MONITORING, Monitoring.class);
 
-		registry.getService("OSServiceUpdater", ServiceUpdater.class).update(
+		registry.getService("ServiceUpdater", ServiceUpdater.class).update(
 				service);
 
 		// THIS IS RUDE BUT SHOULD WORK
@@ -83,8 +90,12 @@ public class MySQLMonitoringTest {
 		List<Object> result = null;
 
 		for (int i = 0; i < 5; i++) {
-			result = monitoring.getData(service,
-					"Select count(*) as C from @SERVICE_TABLE;");
+
+			String query = "SELECT avg(kpi_CREATE_POLL_RC), avg(kpi_GET_POLL_RC), avg(kpi_VOTE_RC), avg(kpi_DELETE_POLL_RC) FROM @SERVICE_TABLE as M JOIN (SELECT MAX(A.time) as maxTime, MIN(A.time) as minTime FROM (SELECT time FROM @SERVICE_TABLE ORDER BY time desc LIMIT 6)as A )as B WHERE M.time < B.maxTime AND M.time > B.minTime;";
+
+			// result = monitoring.getData(service,
+			// "Select count(*) as C from @SERVICE_TABLE;");
+			result = monitoring.getData(service, query);
 
 			for (Object _row : result) {
 				Object[] row = (Object[]) _row;

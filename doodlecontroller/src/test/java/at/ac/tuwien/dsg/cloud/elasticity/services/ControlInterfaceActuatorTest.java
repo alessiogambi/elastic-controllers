@@ -1,6 +1,6 @@
 package at.ac.tuwien.dsg.cloud.elasticity.services;
 
-import java.net.UnknownHostException;
+import java.net.URL;
 import java.util.UUID;
 
 import org.apache.tapestry5.ioc.IOCUtilities;
@@ -8,12 +8,13 @@ import org.apache.tapestry5.ioc.Registry;
 import org.apache.tapestry5.ioc.RegistryBuilder;
 
 import at.ac.tuwien.dsg.cloud.data.DynamicServiceDescription;
-import at.ac.tuwien.dsg.cloud.data.InstanceDescription;
 import at.ac.tuwien.dsg.cloud.data.StaticServiceDescription;
 import at.ac.tuwien.dsg.cloud.data.VeeDescription;
 import at.ac.tuwien.dsg.cloud.elasticity.modules.DoodleElasticControlModule;
 import at.ac.tuwien.dsg.cloud.elasticity.modules.DoodleServiceModule;
 import at.ac.tuwien.dsg.cloud.manifest.StaticServiceDescriptionFactory;
+import at.ac.tuwien.dsg.cloud.modules.CloudAppModule;
+import at.ac.tuwien.dsg.cloud.openstack.modules.OSCloudAppModule;
 import ch.usi.cloud.controller.common.naming.FQN;
 
 public class ControlInterfaceActuatorTest {
@@ -44,8 +45,8 @@ public class ControlInterfaceActuatorTest {
 			IOCUtilities.addDefaultModules(builder);
 			// Add the local modules
 
-			builder.add(at.ac.tuwien.dsg.cloud.modules.CloudAppModule.class);
-			builder.add(at.ac.tuwien.dsg.cloud.openstack.modules.CloudAppModule.class);
+			builder.add(CloudAppModule.class);
+			builder.add(OSCloudAppModule.class);
 			builder.add(DoodleElasticControlModule.class);
 			builder.add(DoodleServiceModule.class);
 
@@ -59,7 +60,7 @@ public class ControlInterfaceActuatorTest {
 
 			StaticServiceDescription _service = new StaticServiceDescription(
 					serviceFQN, StaticServiceDescriptionFactory.fromURL(
-							manifestURL).getOrderedVees());
+							manifestURL).getOrderedVees(), new URL(manifestURL));
 
 			DynamicServiceDescription currentConfiguration = new DynamicServiceDescription(
 					_service, deployID);
@@ -73,8 +74,9 @@ public class ControlInterfaceActuatorTest {
 					.getVeeDescription("appserver");
 			String veeName = vee.getName();
 
-			int replicaNumber = currentConfiguration
-					.getFirstNullReplicaNum(veeName);
+			int replicaNumber = currentConfiguration.getReplicaNum(veeName)
+					.incrementAndGet();
+
 			organizationName = currentConfiguration
 					.getStaticServiceDescription().getServiceFQN()
 					.getOrganizationName();
@@ -87,25 +89,25 @@ public class ControlInterfaceActuatorTest {
 					serviceName, "", veeName, replicaNumber);
 
 			// Deep Copy like of the current configuration
-			DynamicServiceDescription targetConfiguration = new DynamicServiceDescription(currentConfiguration);
+			DynamicServiceDescription targetConfiguration = new DynamicServiceDescription(
+					currentConfiguration);
 
-			
-//			targetConfiguration.addVeeInstance(vee, new InstanceDescription(
-//					replicaFQN, "", "", "", null, null));
-//
-//			replicaFQN = new FQN(organizationName, customerName, serviceName,
-//					"", veeName, replicaNumber++);
-//
-//			targetConfiguration.addVeeInstance(vee, new InstanceDescription(
-//					replicaFQN, "", "", "", null, null));
-//
-//			replicaFQN = new FQN(organizationName, customerName, serviceName,
-//					"", veeName, replicaNumber++);
-//
-//			targetConfiguration.addVeeInstance(vee, new InstanceDescription(
-//					replicaFQN, "", "", "", null, null));
-			
-			targetConfiguration.removeLastReplica( vee );
+			// targetConfiguration.addVeeInstance(vee, new InstanceDescription(
+			// replicaFQN, "", "", "", null, null));
+			//
+			// replicaFQN = new FQN(organizationName, customerName, serviceName,
+			// "", veeName, replicaNumber++);
+			//
+			// targetConfiguration.addVeeInstance(vee, new InstanceDescription(
+			// replicaFQN, "", "", "", null, null));
+			//
+			// replicaFQN = new FQN(organizationName, customerName, serviceName,
+			// "", veeName, replicaNumber++);
+			//
+			// targetConfiguration.addVeeInstance(vee, new InstanceDescription(
+			// replicaFQN, "", "", "", null, null));
+
+			targetConfiguration.removeLastReplica(vee);
 			// targetConfiguration.removeLastReplica( vee );
 			// targetConfiguration.removeLastReplica( vee );
 

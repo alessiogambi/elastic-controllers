@@ -2,7 +2,9 @@ package at.ac.tuwien.dsg.cloud.elasticity.services.impl.configurationselectors.r
 
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.tapestry5.ioc.services.TypeCoercer;
 import org.slf4j.Logger;
@@ -26,7 +28,7 @@ public abstract class AbstractDoodleConfigurationSelectorRules implements
 
 	// Services
 	private Logger logger;
-	
+
 	// Read Monitoring Data
 	private Monitoring monitoring;
 	private TypeCoercer typeCoercer;
@@ -167,11 +169,18 @@ public abstract class AbstractDoodleConfigurationSelectorRules implements
 			// if (logger.isDebugEnabled()) {
 			StringBuffer sb = new StringBuffer();
 			for (int j = 0; j < row.length; j++) {
+				// Note that this is a trick. We can also define a new default
+				// inside the type coercer later on
+				if (row[j] == null) {
+					row[j] = 0.0;
+				}
 				sb.append(row[j]);
 				sb.append(", ");
 			}
 
-			logger.debug("Result " + sb.toString());
+			System.out
+					.println("AbstractDoodleConfigurationSelectorRules.getRCAverage() Result "
+							+ sb.toString());
 			// }
 			// This really should be done directly inside the getData(service,
 			// query, < ? extend Collection>) method !!.
@@ -214,32 +223,45 @@ public abstract class AbstractDoodleConfigurationSelectorRules implements
 			}
 
 		} else if (targetConf.getVeeInstances(vee.getName()).size() < targetDoodleAS) {
+
+			// TODO Assuming we are the only one modifying the object here...
+			// Atomic Integers. Thread Safe
+			int replicaNum = service.getReplicaNum(vee.getName()).intValue();
+
 			while (targetConf.getVeeInstances(vee.getName()).size() < targetDoodleAS) {
-				int replicaNumber = service.getFirstNullReplicaNum(vee
-						.getName());
-				// I guess we should implement it or shall we rutern an atomic
-				// int instead ?
+				// Only Read. Safe
+				FQN serviceFQN = service.getStaticServiceDescription()
+						.getServiceFQN();
+				// Generated on the fly. Thread Safe
+				FQN replicaFQN = new FQN(FQN.getRootNamespace(serviceFQN
+						.toString()),
+						FQN.getCustomerName(serviceFQN.toString()),
+						FQN.getServiceName(serviceFQN.toString()), "",
+						vee.getName(), replicaNum);
 
-				String organizationName = service.getStaticServiceDescription()
-						.getServiceFQN().getOrganizationName();
-				String customerName = service.getStaticServiceDescription()
-						.getServiceFQN().getCustomerName();
-				String serviceName = service.getStaticServiceDescription()
-						.getServiceFQN().getServiceName();
-				String veeName = vee.getName();
-
-				// TODO We can also avoid this and just adding new replicas with
-				// ID given by the platform
-				FQN replicaFQN = new FQN(organizationName, customerName,
-						serviceName, "", veeName, replicaNumber);
+				Set<String> tags = new HashSet<String>();
+				tags.add(serviceFQN.toString());
+				tags.add(replicaFQN.toString());
+				if (service.getDeployID() != null) {
+					tags.add(service.getDeployID().toString());
+				}
+				if (vee.getName().equalsIgnoreCase(
+						service.getStaticServiceDescription().getEntryPoint())) {
+					tags.add("ENTRY_POINT");
+				}
 
 				try {
-					logger.debug("Adding " + replicaFQN);
+					logger.debug("Mocking a new instance of type "
+							+ vee.getName());
+
 					targetConf.addVeeInstance(vee, new InstanceDescription(
-							replicaFQN, "", "", "", null, null));
+							replicaFQN, "", "", "", null, null, tags));
 				} catch (UnknownHostException e) {
 					logger.debug("Error while adding " + replicaFQN, e);
 				}
+
+				// Increment the local-dummy copy of the actual value !
+				replicaNum++;
 
 			}
 		} else {

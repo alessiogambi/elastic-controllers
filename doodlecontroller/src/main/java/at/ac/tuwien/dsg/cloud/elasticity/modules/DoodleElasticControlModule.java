@@ -2,7 +2,6 @@ package at.ac.tuwien.dsg.cloud.elasticity.modules;
 
 import java.lang.reflect.Method;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -26,6 +25,7 @@ import org.apache.tapestry5.plastic.MethodInvocation;
 import org.slf4j.Logger;
 
 import at.ac.tuwien.dsg.cloud.data.DynamicServiceDescription;
+import at.ac.tuwien.dsg.cloud.data.InstanceDescription;
 import at.ac.tuwien.dsg.cloud.elasticity.advices.CloudServiceUpdater;
 import at.ac.tuwien.dsg.cloud.elasticity.data.DoodleSymbolConstants;
 import at.ac.tuwien.dsg.cloud.elasticity.data.SymbolConstants;
@@ -95,16 +95,16 @@ public class DoodleElasticControlModule {
 	}
 
 	@Marker(CloudServiceUpdater.class)
-	public static ServiceUpdater buildOSServiceUpdater(Logger logger,
-			@InjectService("OpenStackTypica") CloudInterface cloudInterface) {
+	public static ServiceUpdater buildServiceUpdater(Logger logger,
+			CloudInterface cloudInterface) {
 		return new ServiceUpdaterImpl(logger, cloudInterface);
 	}
 
-	@Marker(CloudServiceUpdater.class)
-	public static ServiceUpdater buildAmazonServiceUpdater(Logger logger,
-			@InjectService("AmazonTypica") CloudInterface cloudInterface) {
-		return new ServiceUpdaterImpl(logger, cloudInterface);
-	}
+	// @Marker(CloudServiceUpdater.class)
+	// public static ServiceUpdater buildAmazonServiceUpdater(Logger logger,
+	// @InjectService("AmazonTypica") CloudInterface cloudInterface) {
+	// return new ServiceUpdaterImpl(logger, cloudInterface);
+	// }
 
 	/**
 	 * This service implements a BLOCKING configurations actuator. Once its
@@ -115,27 +115,15 @@ public class DoodleElasticControlModule {
 	 * @param controller
 	 * @return
 	 */
-	public static ConfigurationActuator buildOSBlockingConfigurationActuator(
-			Logger logger,
-			@InjectService("OSController") CloudController controller) {
+	@ServiceId("BlockingConfigurationActuator")
+	public static ConfigurationActuator buildBlockingActuator(Logger logger,
+			CloudController controller) {
 		return new BasicConfigurationActuator(logger, controller);
 	}
 
-	public static ConfigurationActuator buildOSNonBlockingConfigurationActuator(
-			Logger logger,
-			@InjectService("OSController") CloudController controller) {
-		return new QueuedConfigurationActuator(logger, controller);
-	}
-
-	public static ConfigurationActuator buildAmazonBlockingConfigurationActuator(
-			Logger logger,
-			@InjectService("AmazonController") CloudController controller) {
-		return new BasicConfigurationActuator(logger, controller);
-	}
-
-	public static ConfigurationActuator buildAmazonNonBlockingConfigurationActuator(
-			Logger logger,
-			@InjectService("AmazonController") CloudController controller) {
+	@ServiceId("NonBlockingConfigurationActuator")
+	public static ConfigurationActuator buildNonBlockingActuator(Logger logger,
+			CloudController controller) {
 		return new QueuedConfigurationActuator(logger, controller);
 	}
 
@@ -262,7 +250,7 @@ public class DoodleElasticControlModule {
 			PeriodicExecutor executor,
 
 			final Logger logger,
-			@InjectService("OpenStackTypica") final CloudInterface cloudInterface,
+			final CloudInterface cloudInterface,
 			// TODO THink on how to easily manage the multiple implementations
 			// of this interface. If its a just a matter of
 			// decoration/logging/delay, than JUST use advice
@@ -287,16 +275,13 @@ public class DoodleElasticControlModule {
 				"Background Monitoring", new Runnable() {
 					public void run() {
 						try {
-							Set<String> instanceIDs = cloudInterface
-									.getServiceInstances(serviceFQN, deployID);
-							for (String instanceID : instanceIDs) {
-								String instanceState = cloudInterface
-										.getInstanceDescriptionByID(instanceID)
-										.getState();
+							for (InstanceDescription instance : cloudInterface
+									.getInstances(serviceFQN, deployID)) {
+								String instanceState = instance.getState();
 
 								if ("ERROR".equalsIgnoreCase(instanceState)) {
 									logger.warn("Instance "
-											+ instanceID
+											+ instance.getInstanceId()
 											+ " is in error state. Invalidate the cache !");
 									cache.invalidate();
 									break;
@@ -388,105 +373,117 @@ public class DoodleElasticControlModule {
 	 * Service Advice
 	 */
 
-	// This seems not to be honored as a receiver I get a lot of more stuff...
-	// not only implementations of ConfigurationActuator !
-	@Advise(serviceInterface = ConfigurationActuator.class)
-	@Match("*ConfigurationActuator")
-	public static void invalidateServiceUpdaterCache(
-			MethodAdviceReceiver receiver, final ServiceUpdaterCache cache) {
+	// Now the cloud-driver contains already a 2-level cache, so we do not need
+	// another cache level inside the controller. Moreover now we may have
+	// several actions implemented at once
+	// and capturing the "actuate" methods to invalidate the cache is not
+	// enough. If we do that, we result to implement an instable system !!!
 
-		MethodAdvice advice = new MethodAdvice() {
-
-			@Override
-			public void advise(MethodInvocation invocation) {
-				Method m = invocation.getMethod();
-
-				// System.out.println("\n\nAdvise " + m.getName());
-				// System.out.println(invocation.getMethod().getModifiers());
-				// Class<?>[] pType = m.getParameterTypes();
-				// System.out.println(pType.length);
-				// Type[] gpType = m.getGenericParameterTypes();
-				// for (int i = 0; i < pType.length; i++) {
-				// System.out.println("ParameterType" + pType[i]);
-				// System.out.println("GenericParameterType" + gpType[i]);
-				// }
-
-				DynamicServiceDescription current = (DynamicServiceDescription) invocation
-						.getParameter(0);
-				DynamicServiceDescription target = (DynamicServiceDescription) invocation
-						.getParameter(1);
-
-				if (!current.equals(target)) {
-					// System.out.println(current + "\n is different from \n"
-					// + target);
-					// "We probabily need to update the cache after the actuation is done, so invalidate it and force the update !");
-					// System.out.println("Invalidate the cache");
-					cache.invalidate();
-				}
-				// System.out.println("Do the normal call");
-				invocation.proceed();
-			}
-		};
-		// Advice only the actuate method
-		// System.out.println("\t\t ConfigurationActuator: Receiver interface: "
-		// + receiver.getInterface().getName());
-
-		for (Method m : receiver.getInterface().getMethods()) {
-			// System.out.println("Processing " + m.getName());
-			// public void actuate(DynamicServiceDescription
-			// currentConfiguration, DynamicServiceDescription
-			// targetConfiguration);
-			if ("actuate".equals(m.getName())) {
-				// System.out.println("\t\t ConfigurationActuator Advising: "
-				// + m.getName());
-				receiver.adviseMethod(m, advice);
-			}
-		}
-	};
-
-	// @Advise(serviceInterface = ServiceUpdater.class)
-	@Advise
-	@CloudServiceUpdater
-	public static void addServiceUpdaterAdvisors(
-			MethodAdviceReceiver receiver,
-			final ServiceUpdaterCache cache,
-			@InjectService("DoodleServiceUpdater") final ServiceUpdater doodleServiceUpdater) {
-
-		MethodAdvice advice = new MethodAdvice() {
-
-			@Override
-			public void advise(MethodInvocation invocation) {
-				DynamicServiceDescription service = (DynamicServiceDescription) invocation
-						.getParameter(0);
-
-				if (cache.isValid()) {
-					// Use the cached version to update the input references -
-					// cache.updateService(service);
-					cache.update(service);
-					// This trap the original invocation
-					// SKIP the : invocation.proceed();
-				} else {
-					// This will make all the calls to the cloud
-					invocation.proceed();
-					// And store into the cache
-					cache.store(service);
-				}
-				// Update the status with the instances using the Loadbalancer
-				doodleServiceUpdater.update(service);
-			}
-		};
-
-		// Advice only the actuate method
-		System.out.println("\t\t ServiceUpdater: Receiver interface: "
-				+ receiver.getInterface().getName());
-
-		for (Method m : receiver.getInterface().getMethods()) {
-			if ("update".equals(m.getName())) {
-
-				System.out.println("\t\t Advise " + m.getName() + " of  "
-						+ receiver.getInterface().getName());
-				receiver.adviseMethod(m, advice);
-			}
-		}
-	};
+	// // This seems not to be honored as a receiver I get a lot of more
+	// stuff...
+	// // not only implementations of ConfigurationActuator !
+	// @Advise(serviceInterface = ConfigurationActuator.class)
+	// @Match("*ConfigurationActuator")
+	// public static void invalidateServiceUpdaterCache(
+	// MethodAdviceReceiver receiver, final ServiceUpdaterCache cache) {
+	//
+	// MethodAdvice advice = new MethodAdvice() {
+	//
+	// @Override
+	// public void advise(MethodInvocation invocation) {
+	// Method m = invocation.getMethod();
+	//
+	// // System.out.println("\n\nAdvise " + m.getName());
+	// // System.out.println(invocation.getMethod().getModifiers());
+	// // Class<?>[] pType = m.getParameterTypes();
+	// // System.out.println(pType.length);
+	// // Type[] gpType = m.getGenericParameterTypes();
+	// // for (int i = 0; i < pType.length; i++) {
+	// // System.out.println("ParameterType" + pType[i]);
+	// // System.out.println("GenericParameterType" + gpType[i]);
+	// // }
+	//
+	// DynamicServiceDescription current = (DynamicServiceDescription)
+	// invocation
+	// .getParameter(0);
+	//
+	// DynamicServiceDescription target = (DynamicServiceDescription) invocation
+	// .getParameter(1);
+	//
+	// if (!current.equals(target)) {
+	// // System.out.println(current + "\n is different from \n"
+	// // + target);
+	// //
+	// "We probabily need to update the cache after the actuation is done, so invalidate it and force the update !");
+	// // System.out.println("Invalidate the cache");
+	// cache.invalidate();
+	// }
+	// // System.out.println("Do the normal call");
+	// invocation.proceed();
+	// }
+	// };
+	// // Advice only the actuate method
+	// // System.out.println("\t\t ConfigurationActuator: Receiver interface: "
+	// // + receiver.getInterface().getName());
+	//
+	// for (Method m : receiver.getInterface().getMethods()) {
+	// // System.out.println("Processing " + m.getName());
+	// // public void actuate(DynamicServiceDescription
+	// // currentConfiguration, DynamicServiceDescription
+	// // targetConfiguration);
+	// if ("actuate".equals(m.getName())) {
+	// // System.out.println("\t\t ConfigurationActuator Advising: "
+	// // + m.getName());
+	// receiver.adviseMethod(m, advice);
+	// }
+	// }
+	// };
+	//
+	// // @Advise(serviceInterface = ServiceUpdater.class)
+	// @Advise
+	// @CloudServiceUpdater
+	// public static void addServiceUpdaterAdvisors(
+	// MethodAdviceReceiver receiver,
+	// final ServiceUpdaterCache cache,
+	// @InjectService("DoodleServiceUpdater") final ServiceUpdater
+	// doodleServiceUpdater) {
+	//
+	// MethodAdvice advice = new MethodAdvice() {
+	//
+	// @Override
+	// public void advise(MethodInvocation invocation) {
+	// DynamicServiceDescription service = (DynamicServiceDescription)
+	// invocation
+	// .getParameter(0);
+	//
+	// if (cache.isValid()) {
+	// // Use the cached version to update the input references -
+	// // cache.updateService(service);
+	// cache.update(service);
+	// // This trap the original invocation
+	// // SKIP the : invocation.proceed();
+	// } else {
+	// // This will make all the calls to the cloud
+	// invocation.proceed();
+	// // And store into the cache
+	// cache.store(service);
+	// }
+	// // Update the status with the instances using the Loadbalancer
+	// doodleServiceUpdater.update(service);
+	// }
+	// };
+	//
+	// // Advice only the actuate method
+	// System.out.println("\t\t ServiceUpdater: Receiver interface: "
+	// + receiver.getInterface().getName());
+	//
+	// for (Method m : receiver.getInterface().getMethods()) {
+	// if ("update".equals(m.getName())) {
+	//
+	// System.out.println("\t\t Advise " + m.getName() + " of  "
+	// + receiver.getInterface().getName());
+	// receiver.adviseMethod(m, advice);
+	// }
+	// }
+	// };
 }
