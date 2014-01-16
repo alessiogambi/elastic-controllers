@@ -13,7 +13,6 @@ import org.apache.tapestry5.ioc.ServiceBinder;
 import org.apache.tapestry5.ioc.annotations.Advise;
 import org.apache.tapestry5.ioc.annotations.InjectService;
 import org.apache.tapestry5.ioc.annotations.Marker;
-import org.apache.tapestry5.ioc.annotations.Match;
 import org.apache.tapestry5.ioc.annotations.ServiceId;
 import org.apache.tapestry5.ioc.annotations.Startup;
 import org.apache.tapestry5.ioc.annotations.Symbol;
@@ -23,6 +22,7 @@ import org.apache.tapestry5.ioc.services.cron.PeriodicExecutor;
 import org.apache.tapestry5.plastic.MethodAdvice;
 import org.apache.tapestry5.plastic.MethodInvocation;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import at.ac.tuwien.dsg.cloud.data.DynamicServiceDescription;
 import at.ac.tuwien.dsg.cloud.data.InstanceDescription;
@@ -57,6 +57,9 @@ import ch.usi.cloud.controller.common.naming.FQNException;
 import ch.usi.cloud.controller.common.naming.FQNType;
 
 public class DoodleElasticControlModule {
+
+	private static Logger logger = LoggerFactory
+			.getLogger(DoodleElasticControlModule.class);
 
 	/*
 	 * TODO: Shall we use a STRATEGY SERVICE based on PLATFORM to instantiate
@@ -122,9 +125,12 @@ public class DoodleElasticControlModule {
 	}
 
 	@ServiceId("NonBlockingConfigurationActuator")
-	public static ConfigurationActuator buildNonBlockingActuator(Logger logger,
-			CloudController controller) {
-		return new QueuedConfigurationActuator(logger, controller);
+	public static ConfigurationActuator buildNonBlockingActuator(
+			Logger logger,//
+			CloudController controller,//
+			@InjectService("BlockingConfigurationActuator") ConfigurationActuator blockingConfigurationActuator) {
+		return new QueuedConfigurationActuator(logger, controller,
+				blockingConfigurationActuator);
 	}
 
 	public static ConfigurationSelectorProvider buildConfigurationSelectorProvider(
@@ -439,51 +445,47 @@ public class DoodleElasticControlModule {
 	// }
 	// };
 	//
-	// // @Advise(serviceInterface = ServiceUpdater.class)
-	// @Advise
-	// @CloudServiceUpdater
-	// public static void addServiceUpdaterAdvisors(
-	// MethodAdviceReceiver receiver,
-	// final ServiceUpdaterCache cache,
-	// @InjectService("DoodleServiceUpdater") final ServiceUpdater
-	// doodleServiceUpdater) {
-	//
-	// MethodAdvice advice = new MethodAdvice() {
-	//
-	// @Override
-	// public void advise(MethodInvocation invocation) {
-	// DynamicServiceDescription service = (DynamicServiceDescription)
-	// invocation
-	// .getParameter(0);
-	//
-	// if (cache.isValid()) {
-	// // Use the cached version to update the input references -
-	// // cache.updateService(service);
-	// cache.update(service);
-	// // This trap the original invocation
-	// // SKIP the : invocation.proceed();
-	// } else {
-	// // This will make all the calls to the cloud
-	// invocation.proceed();
-	// // And store into the cache
-	// cache.store(service);
-	// }
-	// // Update the status with the instances using the Loadbalancer
-	// doodleServiceUpdater.update(service);
-	// }
-	// };
-	//
-	// // Advice only the actuate method
-	// System.out.println("\t\t ServiceUpdater: Receiver interface: "
-	// + receiver.getInterface().getName());
-	//
-	// for (Method m : receiver.getInterface().getMethods()) {
-	// if ("update".equals(m.getName())) {
-	//
-	// System.out.println("\t\t Advise " + m.getName() + " of  "
-	// + receiver.getInterface().getName());
-	// receiver.adviseMethod(m, advice);
-	// }
-	// }
-	// };
+	// @Advise(serviceInterface = ServiceUpdater.class)
+	/**
+	 * This method intercepts all the calls to ServiceUpdater and update the
+	 * structure afterwards service
+	 */
+	@Advise
+	@CloudServiceUpdater
+	// TODO Should this be static ?
+	public static void addServiceUpdaterAdvisors(
+			MethodAdviceReceiver receiver,
+			final ServiceUpdaterCache cache,
+			@InjectService("DoodleServiceUpdater") final ServiceUpdater doodleServiceUpdater) {
+
+		MethodAdvice advice = new MethodAdvice() {
+
+			@Override
+			public void advise(MethodInvocation invocation) {
+				// We leverage the fact that service is a shared class among all
+				// the services !!
+				DynamicServiceDescription service = (DynamicServiceDescription) invocation
+						.getParameter(0);
+
+				// Make the original call that will modify the service object
+				invocation.proceed();
+
+				// Finally, update the data structure with the instances using the LoadBalancer
+				doodleServiceUpdater.update(service);
+			}
+		};
+
+		// Advice only the actuate method
+		logger.info("\t\t ServiceUpdater: Receiver interface: "
+				+ receiver.getInterface().getName());
+
+		for (Method m : receiver.getInterface().getMethods()) {
+			if ("update".equals(m.getName())) {
+
+				System.out.println("\t\t Advise " + m.getName() + " of  "
+						+ receiver.getInterface().getName());
+				receiver.adviseMethod(m, advice);
+			}
+		}
+	};
 }

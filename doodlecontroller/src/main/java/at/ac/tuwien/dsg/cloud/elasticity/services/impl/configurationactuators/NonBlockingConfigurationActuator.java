@@ -16,6 +16,7 @@ import at.ac.tuwien.dsg.cloud.elasticity.services.ConfigurationActuator;
  * @author alessiogambi
  * 
  */
+// FIXME Use PeriodExecutor !
 public abstract class NonBlockingConfigurationActuator implements
 		ConfigurationActuator {
 

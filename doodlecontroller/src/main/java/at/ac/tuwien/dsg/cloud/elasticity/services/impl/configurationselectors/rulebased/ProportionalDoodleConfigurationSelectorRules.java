@@ -1,9 +1,12 @@
 package at.ac.tuwien.dsg.cloud.elasticity.services.impl.configurationselectors.rulebased;
 
+import java.util.List;
+
 import org.apache.tapestry5.ioc.services.TypeCoercer;
 import org.slf4j.Logger;
 
 import at.ac.tuwien.dsg.cloud.data.DynamicServiceDescription;
+import at.ac.tuwien.dsg.cloud.data.InstanceDescription;
 import at.ac.tuwien.dsg.cloud.elasticity.services.ConfigurationSelectorDAO;
 import at.ac.tuwien.dsg.cloud.elasticity.services.Monitoring;
 import ch.usi.cloud.controller.impl.ConfigurationException;
@@ -72,21 +75,34 @@ public class ProportionalDoodleConfigurationSelectorRules extends
 			DynamicServiceDescription _currentConfiguration, double[] context)
 			throws ConfigurationException {
 
-		int currentConfiguration = _currentConfiguration.getVeeInstances(
-				"appserver").size();
+		// Current configuration is service !
+		List<InstanceDescription> runningNodes = _currentConfiguration
+				.getVeeInstances("appserver");
 
-		logger.info("Current doodleAS/appserver node RUNNING (some of them may be still in the registration process): "
-				+ currentConfiguration);
+		logger.debug("There are " + runningNodes.size() + " running appservers");
+
+		int currentConfiguration = 0;
+		for (InstanceDescription appserver : runningNodes) {
+			if ("REGISTERED".equalsIgnoreCase(appserver.getState())) {
+				currentConfiguration = currentConfiguration + 1;
+			}
+		}
+
+		logger.debug("Registered nodes are " + currentConfiguration);
+
+		logger.info("Current conf: " + currentConfiguration + "["
+				+ runningNodes.size() + "]");
+
 		double jobs = (context[0] + context[1] + context[2] + context[3]);
-
-		logger.info("Jobs per app server => \n\n" + minJobs + " < "
-				+ (jobs / currentConfiguration) + " < " + maxJobs);
 
 		double target = (maxJobs + minJobs) / 2;
 
 		configurationSelectorDAO.storeActivationData(service, jobs);
 
 		int targetConfiguration = (int) (jobs / target);
+
+		logger.info("Jobs per app server => \n\n" + minJobs + " < "
+				+ (jobs / target) + " < " + maxJobs);
 
 		logger.info("Target configuration would be " + targetConfiguration);
 
@@ -121,6 +137,9 @@ public class ProportionalDoodleConfigurationSelectorRules extends
 			} else {
 				lastScaleDown = System.currentTimeMillis();
 			}
+		} else {
+			logger.info("Current configuration is just ok (Stay Still)");
+			return _currentConfiguration;
 		}
 
 		return convertArrayToServiceConf(targetConfiguration);

@@ -2,6 +2,7 @@ package at.ac.tuwien.dsg.cloud.elasticity.services.impl;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.UUID;
 
@@ -48,14 +49,24 @@ public class ServiceUpdaterImpl implements ServiceUpdater {
 
 			System.out
 					.println("\n\n ServiceUpdaterImpl.update() cloud found those "
-							+ instances.size() + "instances : " + instances);
+							+ instances.size() + "instances : ");
 
-			// // Get all the details
-			// List<InstanceDescription> instances = new
-			// ArrayList<InstanceDescription>();
-			// for (String instanceID : instanceIDs) {
-			// instances.add(cloud.getInstanceDescriptionByID(instanceID));
-			// }
+			for (InstanceDescription instance : instances) {
+				System.out.println("\t- " + instance.getReplicaFQN() + " : "
+						+ instance.getState());
+			}
+
+			// Pending instances are NOT good !
+
+			Iterator<InstanceDescription> itInstances = instances.iterator();
+			while (itInstances.hasNext()) {
+				InstanceDescription instance = itInstances.next();
+				if (instance.getState().contains("VM")) {
+					System.out.println("ServiceUpdaterImpl.update() FILTERING "
+							+ instance.getReplicaFQN());
+					itInstances.remove();
+				}
+			}
 
 			// THis is the new representation
 			HashMap<String, ArrayList<InstanceDescription>> _instances = new HashMap<String, ArrayList<InstanceDescription>>();

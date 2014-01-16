@@ -34,12 +34,19 @@ public class BasicConfigurationActuator extends BlockingConfigurationActuator {
 
 			for (InstanceDescription instance : currentConfiguration
 					.getVeeInstances(vee.getName())) {
+
+				// TODO Here we should remove only instances that CAN ACTUALLY
+				// BE
+				// REMOVED, i.e., THE ONES IN RUNNING STATUS !!
+
 				if (!targetConfiguration.getVeeInstances(vee.getName())
-						.contains(instance)) {
+						.contains(instance)
+						&& !"RUNNING".equalsIgnoreCase(instance.getState())) {
 					logger.info("Vee " + vee.getName() + "(Instance "
 							+ instance + ") marked to be removed ");
 					instancesToRemove.add(vee);
 				}
+
 			}
 		}
 

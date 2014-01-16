@@ -106,6 +106,7 @@ public abstract class AbstractDoodleConfigurationSelectorRules implements
 
 		logger.debug("Retrieved context: " + Arrays.toString(context));
 
+		// Updated by the ServiceUpdater + Advices
 		DynamicServiceDescription targetConfiguration = service;
 		try {
 

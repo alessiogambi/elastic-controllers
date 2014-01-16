@@ -79,17 +79,21 @@ public class FixedDoodleConfigurationSelectorRules extends
 		// Current configuration is service !
 		List<InstanceDescription> runningNodes = _currentConfiguration
 				.getVeeInstances("appserver");
+
 		logger.debug("There are " + runningNodes.size() + " running appservers");
+
 		int currentConfiguration = 0;
 		for (InstanceDescription appserver : runningNodes) {
 			if ("REGISTERED".equalsIgnoreCase(appserver.getState())) {
 				currentConfiguration = currentConfiguration + 1;
 			}
 		}
+
 		logger.debug("Registered nodes are " + currentConfiguration);
 
 		logger.info("Current conf: " + currentConfiguration + "["
 				+ runningNodes.size() + "]");
+
 		double jobs = (context[0] + context[1] + context[2] + context[3]);
 
 		logger.info("Avg jobs per app server => " + minJobs + " < "
@@ -113,26 +117,28 @@ public class FixedDoodleConfigurationSelectorRules extends
 		logger.debug("Target configuration would be " + targetConfiguration
 				+ " app servers");
 
-		if (runningNodes.size() > currentConfiguration) {
-			// There are nodes that are starting. Shall we wait for them to
-			// start ?
-			// But
-			logger.debug("But " + (runningNodes.size() - currentConfiguration)
-					+ " nodes are starting.");
-			logger.info("Wait " + (runningNodes.size() - currentConfiguration)
-					+ "instances to register .");
-			return _currentConfiguration;
-		}
-
-		// TODO
-		// Apply Resource limits
-		// if (targetConfiguration < getMinInstances()) {
-		// logger.warn("THE MINIMUM NUMBER OF doodleAS HAS BEEN REACHED !");
-		// targetConfiguration = (int) getMinInstances();
-		// } else if (targetConfiguration > getMaxInstances()) {
-		// logger.warn("THE MAXIMUM NUMBER OF doodleAS HAS BEEN REACHED !");
-		// targetConfiguration = (int) getMaxInstances();
+		// THIS IS TRICKY BUT OK TO SHOW THE PROBLEMS WITH COOLING DOWN PERIODS
+		// AND LONG START UP TIMES AND BLOCKING/NON-BLOCKING ACTUATORS !
+		//
+		// if (runningNodes.size() > currentConfiguration) {
+		// // There are nodes that are starting. Shall we wait for them to
+		// // start ?
+		// // But
+		// logger.debug("But " + (runningNodes.size() - currentConfiguration)
+		// + " nodes are starting.");
+		// logger.info("Wait " + (runningNodes.size() - currentConfiguration)
+		// + "instances to register .");
+		// return _currentConfiguration;
 		// }
+
+		// Apply Resource limits
+		if (targetConfiguration < getMinInstances()) {
+			logger.warn("THE MINIMUM NUMBER OF doodleAS WOULD BE REACHED - FORCE MIN !");
+			targetConfiguration = (int) getMinInstances();
+		} else if (targetConfiguration > getMaxInstances()) {
+			logger.warn("THE MAXIMUM NUMBER OF doodleAS WOULD BE REACHED - FORCE MAX  !");
+			targetConfiguration = (int) getMaxInstances();
+		}
 
 		// Apply Cool Down periods
 		if (currentConfiguration < targetConfiguration) {
@@ -163,17 +169,12 @@ public class FixedDoodleConfigurationSelectorRules extends
 				// configuration
 				lastScaleDown = System.currentTimeMillis();
 			}
-		}
+		} else {
+			logger.info("Stay Still ");
+			return _currentConfiguration;
 
-		// Apply Resource limits
-		if (targetConfiguration < getMinInstances()) {
-			logger.warn("THE MINIMUM NUMBER OF doodleAS HAS BEEN REACHED !");
-			targetConfiguration = (int) getMinInstances();
-		} else if (targetConfiguration > getMaxInstances()) {
-			logger.warn("THE MAXIMUM NUMBER OF doodleAS HAS BEEN REACHED !");
-			targetConfiguration = (int) getMaxInstances();
 		}
-
+		// Note that scaling down should affect only the instances that are "REGISTERED"
 		return convertArrayToServiceConf(targetConfiguration);
 	}
 }
